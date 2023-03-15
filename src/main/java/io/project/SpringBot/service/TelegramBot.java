@@ -32,16 +32,6 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     public TelegramBot(BotConfig config){
         this.config = config;
-        List<BotCommand> listOfCommand = new ArrayList<>();
-        listOfCommand.add(new BotCommand("/start", "Welcome message"));
-        listOfCommand.add(new BotCommand("/myData", "Show data"));
-        listOfCommand.add(new BotCommand("/deleteData", "Delete my data"));
-        listOfCommand.add(new BotCommand("/help", "Help info"));
-        try{
-            this.execute(new SetMyCommands(listOfCommand, new BotCommandScopeDefault(), ""));
-        } catch (TelegramApiException e){
-            log.error("Error setting bot's commad list: " + e.getMessage());
-        }
     }
 
     @Override
@@ -59,16 +49,21 @@ public class TelegramBot extends TelegramLongPollingBot {
         if(update.hasMessage() && update.getMessage().hasText()){
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
-            switch (messageText){
-                case "/start":
+
+            switch (messageText) {
+                case "/start" -> {
                     registerUser(update.getMessage());
                     startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                    break;
-                case "/help":
-                    sendMessage(chatId, HELP_TEXT);
-                    break;
-                default:
-                    sendMessage(chatId, "Default method");
+                }
+                case "/send" -> {
+                    var users = userRepository.findAll();
+                    for (User user : users) {
+                        sendMessage(user.getChatId(),
+                                "Hello brother " + user.getFirstName() + ", shall we meet and go for a walk? Send + or -");
+                    }
+                }
+                default -> sendMessage(chatId,
+                        userRepository.findById(chatId).get().getFirstName() + ", sorry, but the engineer has not yet added such a function, write to the developer by mail to get feedback");
             }
 
         }
@@ -92,7 +87,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void registerUser(Message message){
-        if(userRepository.findById(message.getChatId()).isPresent()){
+        if(!userRepository.findById(message.getChatId()).isPresent()){
             var chatId = message.getChatId();
             var chat = message.getChat();
 
