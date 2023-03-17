@@ -16,14 +16,14 @@ public class UserList {
     private Long id;
 
     @Column(name = "day")
-    private LocalDate dayId;
+    private LocalDate day;
 
     @Column(name = "user")
-    private String user;
+    private String name;
 
     public UserList(LocalDate dayId, String user) {
-        this.dayId = dayId;
-        this.user = user;
+        this.day = dayId;
+        this.name = user;
     }
 
     public UserList() {
@@ -31,6 +31,6 @@ public class UserList {
 
     @Override
     public String toString() {
-        return user;
+        return name;
     }
 }
