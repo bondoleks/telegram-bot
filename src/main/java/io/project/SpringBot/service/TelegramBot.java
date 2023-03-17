@@ -38,7 +38,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     final BotConfig config;
 
-    LocalDate today = LocalDate.now();
+
 
     public TelegramBot(BotConfig config){
         this.config = config;
@@ -66,21 +66,16 @@ public class TelegramBot extends TelegramLongPollingBot {
                     startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
                 }
                 case "Invite people" -> {
-                    send(chatId);
+                    sendInvite(chatId);
                 }
                 case "+" ->{
-                    UserList userList = new UserList(today, userRepository.findById(chatId).get().getFirstName());
-                    if(userListRepository.equals(userList)){
-                        userListRepository.save(userList);
-                        sendMessage(chatId, "Cool\nPeoples list :" + today + userListRepository.findAll());
-                    }
-                    sendMessage(chatId, "You invite\nPeoples list :" + today + userListRepository.findAll());
+                    addPeople(chatId);
                 }
                 case "-" ->{
-                    sendMessage(chatId, "Noooo");
+                    deletePeople(chatId);
                 }
                 case "Peoples list" ->{
-                    sendMessage(chatId, "" + today + userListRepository.findAll());
+                    peopleList(chatId);
                 }
                 default -> sendMessage(chatId,
                         userRepository.findById(chatId).get().getFirstName() + ", sorry, but the engineer has not yet added such a function, write to the developer by mail to get feedback");
@@ -99,27 +94,79 @@ public class TelegramBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(textToSend);
-
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
-        KeyboardRow row = new KeyboardRow();
-        row.add("Invite people");
-        keyboardRows.add(row);
-        row = new KeyboardRow();
-        row.add("+");
-        row.add("-");
-        keyboardRows.add(row);
-        row = new KeyboardRow();
-        row.add("Peoples list");
-        keyboardRows.add(row);
-        keyboardMarkup.setKeyboard(keyboardRows);
-        message.setReplyMarkup(keyboardMarkup);
-
+        addButton(message);
         try {
             execute(message);
         }catch (TelegramApiException e){
             log.error("Error occurred: " + e.getMessage());
         }
+    }
+
+    private void addButton(SendMessage message) {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+
+        KeyboardRow row = new KeyboardRow();
+        row.add("Invite people");
+        keyboardRows.add(row);
+
+        row = new KeyboardRow();
+        row.add("+");
+        row.add("-");
+        keyboardRows.add(row);
+
+        row = new KeyboardRow();
+        row.add("Peoples list");
+        keyboardRows.add(row);
+
+        keyboardMarkup.setKeyboard(keyboardRows);
+        message.setReplyMarkup(keyboardMarkup);
+    }
+
+    private void addPeople(long chatId){
+        LocalDate today = LocalDate.now();
+        UserList userList = new UserList(today, userRepository.findById(chatId).get().getFirstName());
+        boolean checkUser = true;
+        for (UserList user : userListRepository.findAll()) {
+            if (user.getDay().equals(today) && user.getName().equals(userList.getName())) {
+                sendMessage(chatId, "You invite\nPeoples list :");
+                peopleList(chatId);
+                checkUser = false;
+                break;
+            }
+        }
+        if(checkUser) {
+            userListRepository.save(userList);
+            sendMessage(chatId, "Cool\nPeoples list :");
+            peopleList(chatId);
+            sendPeopleList();
+        }
+    }
+
+    private void deletePeople(long chatId){
+        LocalDate today = LocalDate.now();
+        UserList userList = new UserList(today, userRepository.findById(chatId).get().getFirstName());
+        for (UserList user : userListRepository.findAll()) {
+            if (user.getDay().equals(today) && user.getName().equals(userList.getName())) {
+                userListRepository.deleteById(user.getId());
+                sendMessage(chatId, "Nooooo\nPeoples list :");
+                peopleList(chatId);
+                sendPeopleList();
+                break;
+            }
+        }
+        sendMessage(chatId, "You are not registered");
+    }
+
+    private void peopleList(long chatId){
+        LocalDate today = LocalDate.now();
+        StringBuilder userList = new StringBuilder();
+        for (UserList user : userListRepository.findAll()) {
+            if (user.getDay().equals(today)) {
+                userList.append(", " + user.getName());
+            }
+        }
+        sendMessage(chatId, "" + today + userList);
     }
 
     private void registerUser(Message message) {
@@ -134,13 +181,20 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-        private void send(long chatId) {
-            var users = userRepository.findAll();
-            for (User user : users) {
-                sendMessage(user.getChatId(),
-                        "Hello brother " + user.getFirstName() + ", shall we meet and go for a walk? Send + or -.\n" +
-                                "Brother " + userRepository.findById(chatId).get().getFirstName() + " invites.");
-            }
+    private void sendInvite(long chatId) {
+        var users = userRepository.findAll();
+        for (User user : users) {
+            sendMessage(user.getChatId(),
+                    "Hello brother " + user.getFirstName() + ", shall we meet and go for a walk? Send + or -.\n" +
+                            "Brother " + userRepository.findById(chatId).get().getFirstName() + " invites.");
         }
     }
+
+    private void sendPeopleList() {
+        var users = userRepository.findAll();
+        for (User user : users) {
+            peopleList(user.getChatId());
+        }
+    }
+}
 
