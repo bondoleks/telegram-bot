@@ -7,29 +7,24 @@ import java.time.LocalDate;
 
 
 @Data
-@Entity(name = "UsersList")
-public class UserList {
+@Entity(name = "Invites")
+public class Invite {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @Column(name = "day")
+    @Column(name = "dayInvite")
     private LocalDate day;
 
-    @Column(name = "user")
+    @Column(name = "userInitiator")
     private String name;
 
-    public UserList(LocalDate dayId, String user) {
+    public Invite(LocalDate dayId, String user) {
         this.day = dayId;
         this.name = user;
     }
 
-    public UserList() {
-    }
-
-    @Override
-    public String toString() {
-        return name;
+    public Invite() {
     }
 }
