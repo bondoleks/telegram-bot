@@ -1,10 +1,7 @@
 package io.project.SpringBot.service;
 
 import io.project.SpringBot.config.BotConfig;
-import io.project.SpringBot.model.User;
-import io.project.SpringBot.model.UserList;
-import io.project.SpringBot.model.UserListRepository;
-import io.project.SpringBot.model.UserRepository;
+import io.project.SpringBot.model.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -36,13 +33,16 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Autowired
     private UserListRepository userListRepository;
 
+    @Autowired
+    private InviteRepository inviteRepository;
+
     final BotConfig config;
-
-
 
     public TelegramBot(BotConfig config){
         this.config = config;
     }
+
+    LocalDate today = LocalDate.now();
 
     @Override
     public String getBotUsername() {
@@ -66,6 +66,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                     startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
                 }
                 case "Invite people" -> {
+                    Invite invite = new Invite(today, userRepository.findById(chatId).get().getFirstName());
+                    inviteRepository.save(invite);
                     sendInvite(chatId);
                 }
                 case "+" ->{
@@ -94,7 +96,17 @@ public class TelegramBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(textToSend);
-        addButton(message);
+        boolean checkUser = true;
+        for (Invite invite1 : inviteRepository.findAll()) {
+            if (invite1.getDay().equals(today)) {
+                addButton2(message);
+                checkUser = false;
+                break;
+            }
+        }
+        if(checkUser) {
+            addButton(message);
+        }
         try {
             execute(message);
         }catch (TelegramApiException e){
@@ -110,7 +122,15 @@ public class TelegramBot extends TelegramLongPollingBot {
         row.add("Invite people");
         keyboardRows.add(row);
 
-        row = new KeyboardRow();
+        keyboardMarkup.setKeyboard(keyboardRows);
+        message.setReplyMarkup(keyboardMarkup);
+    }
+
+    private void addButton2(SendMessage message) {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+
+        KeyboardRow row = new KeyboardRow();
         row.add("+");
         row.add("-");
         keyboardRows.add(row);
@@ -124,33 +144,29 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void addPeople(long chatId){
-        LocalDate today = LocalDate.now();
         UserList userList = new UserList(today, userRepository.findById(chatId).get().getFirstName());
         boolean checkUser = true;
         for (UserList user : userListRepository.findAll()) {
             if (user.getDay().equals(today) && user.getName().equals(userList.getName())) {
-                sendMessage(chatId, "You invite\nPeoples list :");
-                peopleList(chatId);
+                sendMessage(chatId, "You invite");
+                sendPeopleList();
                 checkUser = false;
                 break;
             }
         }
         if(checkUser) {
             userListRepository.save(userList);
-            sendMessage(chatId, "Cool\nPeoples list :");
-            peopleList(chatId);
+            sendMessage(chatId, "Cool");
             sendPeopleList();
         }
     }
 
     private void deletePeople(long chatId){
-        LocalDate today = LocalDate.now();
         UserList userList = new UserList(today, userRepository.findById(chatId).get().getFirstName());
         for (UserList user : userListRepository.findAll()) {
             if (user.getDay().equals(today) && user.getName().equals(userList.getName())) {
                 userListRepository.deleteById(user.getId());
-                sendMessage(chatId, "Nooooo\nPeoples list :");
-                peopleList(chatId);
+                sendMessage(chatId, "Nooooo");
                 sendPeopleList();
                 break;
             }
@@ -159,7 +175,6 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void peopleList(long chatId){
-        LocalDate today = LocalDate.now();
         StringBuilder userList = new StringBuilder();
         for (UserList user : userListRepository.findAll()) {
             if (user.getDay().equals(today)) {
@@ -185,7 +200,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         var users = userRepository.findAll();
         for (User user : users) {
             sendMessage(user.getChatId(),
-                    "Hello brother " + user.getFirstName() + ", shall we meet and go for a walk? Send + or -.\n" +
+                    "Hello brother " + user.getFirstName() + ", shall we meet and go for a walk today at 20:00? Send + or -.\n" +
                             "Brother " + userRepository.findById(chatId).get().getFirstName() + " invites.");
         }
     }
