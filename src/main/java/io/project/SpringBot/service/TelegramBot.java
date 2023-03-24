@@ -6,15 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
-import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -66,8 +61,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                     startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
                 }
                 case "Invite people" -> {
-                    Invite invite = new Invite(today, userRepository.findById(chatId).get().getFirstName());
-                    inviteRepository.save(invite);
+                    saveInvite(chatId);
                     sendInvite(chatId);
                 }
                 case "+" ->{
@@ -99,13 +93,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         boolean checkUser = true;
         for (Invite invite1 : inviteRepository.findAll()) {
             if (invite1.getDay().equals(today)) {
-                addButton2(message);
+                addButtonPlusMinusList(message);
                 checkUser = false;
                 break;
             }
         }
         if(checkUser) {
-            addButton(message);
+            addButtonInvite(message);
         }
         try {
             execute(message);
@@ -114,7 +108,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private void addButton(SendMessage message) {
+    private void addButtonInvite(SendMessage message) {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboardRows = new ArrayList<>();
 
@@ -126,7 +120,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setReplyMarkup(keyboardMarkup);
     }
 
-    private void addButton2(SendMessage message) {
+    private void addButtonPlusMinusList(SendMessage message) {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboardRows = new ArrayList<>();
 
@@ -210,6 +204,11 @@ public class TelegramBot extends TelegramLongPollingBot {
         for (User user : users) {
             peopleList(user.getChatId());
         }
+    }
+
+    private void saveInvite(long chatId){
+        Invite invite = new Invite(today, userRepository.findById(chatId).get().getFirstName());
+        inviteRepository.save(invite);
     }
 }
 
